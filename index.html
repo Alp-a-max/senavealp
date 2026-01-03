@@ -502,11 +502,10 @@
         </div>
     </div>
 
-    <!-- AUDIO ELEMENT -->
-    <audio id="notification-sound">
-        <!-- Simple 'Ding' Sound Base64 -->
+    <!-- AUDIO ELEMENT (Valid 'Ding' Sound) -->
+    <audio id="notification-sound" preload="auto">
         <source
-            src="data:audio/mp3;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84e4KEG4SAlkOiSFFF/wDP/73/9//9/3/8/2//4/9//+///7//9////3/////3//3/7f/8P/j/5f/4//v/7//7//8P/6//t////+//3//9//+////9//3//7///9/////3/3///////f/9/3//3/7///3////3//7///9///3///3///9///////7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7//uQZAAABt0vW/yQAAAAA3S9b/JAAAAAm1bM/yQAAAAJtWzP8kAAACBAEAAQA"
+            src="data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAABAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//sQxAADAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
             type="audio/mpeg">
     </audio>
 
@@ -567,11 +566,22 @@
 
                 // Request Permission silently if already granted or ask
                 requestNotificationPermission();
+
+                // Add a global click listener once to unlock audio context
+                document.body.addEventListener('click', unlockAudioContext, { once: true });
             } else {
                 // New user, show modal
                 modal.style.display = 'flex';
             }
         };
+
+        function unlockAudioContext() {
+            // Play and pause immediately to unlock
+            notifSound.play().then(() => {
+                notifSound.pause();
+                notifSound.currentTime = 0;
+            }).catch(e => console.log("Audio unlock failed (waiting for interaction):", e));
+        }
 
         // --- Notification Logic ---
         function requestNotificationPermission() {
@@ -586,15 +596,26 @@
             // Play Sound
             try {
                 notifSound.currentTime = 0;
-                notifSound.play().catch(e => console.log("Audio permission needed interactively first"));
-            } catch (e) { }
+                let playPromise = notifSound.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Audio play failed. Browser might have blocked it.");
+                    });
+                }
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
 
             // Desktop Notification
             if (Notification.permission === "granted") {
-                new Notification(`Yeni Mesaj: ${sender}`, {
-                    body: text,
-                    icon: myProfile.avatar || defaultAvatar // Uses my avatar as fallback icon or simple
-                });
+                // Check page visibility
+                if (document.hidden) {
+                    new Notification(`Yeni Mesaj: ${sender}`, {
+                        body: text,
+                        icon: myProfile.avatar || defaultAvatar // Uses my avatar as fallback icon or simple
+                    });
+                }
             }
         }
 
@@ -654,6 +675,9 @@
 
             // Re-init listeners if needed
             initializeRealtimeFeatures();
+
+            // Unlock audio aggressively on this interaction
+            unlockAudioContext();
         }
 
         function openSettings() {
@@ -662,6 +686,23 @@
             usernameInput.value = myProfile.name;
             if (myProfile.avatar) avatarPreview.src = myProfile.avatar;
             closeModalBtn.style.display = 'inline-block';
+
+            // Add Test Sound Button if not exists
+            if (!document.getElementById('test-sound-btn')) {
+                const testBtn = document.createElement('button');
+                testBtn.id = 'test-sound-btn';
+                testBtn.className = 'btn-secondary';
+                testBtn.innerText = '🔊 Sesi Test Et';
+                testBtn.style.marginTop = '10px';
+                testBtn.onclick = function () {
+                    notifSound.currentTime = 0;
+                    notifSound.play().then(() => alert("Ses çalıyor mu?")).catch(e => alert("Hata: " + e.message));
+                };
+
+                // Insert before close button
+                const btnContainer = document.querySelector('.modal-card');
+                btnContainer.insertBefore(testBtn, closeModalBtn);
+            }
         }
 
         function closeModal() {
@@ -790,12 +831,9 @@
 
             chatBox.appendChild(div);
             // Scroll to bottom smoothly
-            setTimeout(() => {
-                chatBox.scrollTo({
-                    top: chatBox.scrollHeight,
-                    behavior: 'smooth'
-                });
-            }, 100);
+            requestAnimationFrame(() => {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
         }
 
         // --- Resize/Mobile Height Fix ---
