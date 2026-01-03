@@ -502,12 +502,7 @@
         </div>
     </div>
 
-    <!-- AUDIO ELEMENT (Valid 'Ding' Sound) -->
-    <audio id="notification-sound" preload="auto">
-        <source
-            src="data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAABAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//sQxAADAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-            type="audio/mpeg">
-    </audio>
+    <!-- AUDIO ELEMENT REMOVED - USING WEB AUDIO API -->
 
     <script>
         /**
@@ -554,7 +549,47 @@
         const usernameInput = document.getElementById('username-input');
         const avatarPreview = document.getElementById('avatar-preview-img');
         const chatBox = document.getElementById('chat-box');
-        const notifSound = document.getElementById('notification-sound');
+
+        // --- Web Audio API Setup ---
+        // Robust sound generation without files
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+        }
+
+        function playNotificationSound() {
+            // Ensure context is running
+            initAudio();
+            if (!audioCtx) return;
+
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // Create Oscillator (Synthesizer)
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // Sound Config (Pleasant Ding)
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            oscillator.frequency.exponentialRampToValueAtTime(1046.5, audioCtx.currentTime + 0.1); // C6
+
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5);
+        }
 
         // --- Initialization ---
         window.onload = function () {
@@ -567,21 +602,17 @@
                 // Request Permission silently if already granted or ask
                 requestNotificationPermission();
 
-                // Add a global click listener once to unlock audio context
-                document.body.addEventListener('click', unlockAudioContext, { once: true });
+                // Init Audio on first interaction
+                document.body.addEventListener('click', () => {
+                    initAudio();
+                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                }, { once: true });
+
             } else {
                 // New user, show modal
                 modal.style.display = 'flex';
             }
         };
-
-        function unlockAudioContext() {
-            // Play and pause immediately to unlock
-            notifSound.play().then(() => {
-                notifSound.pause();
-                notifSound.currentTime = 0;
-            }).catch(e => console.log("Audio unlock failed (waiting for interaction):", e));
-        }
 
         // --- Notification Logic ---
         function requestNotificationPermission() {
@@ -594,18 +625,7 @@
 
         function triggerNotification(sender, text) {
             // Play Sound
-            try {
-                notifSound.currentTime = 0;
-                let playPromise = notifSound.play();
-
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Audio play failed. Browser might have blocked it.");
-                    });
-                }
-            } catch (e) {
-                console.error("Audio error:", e);
-            }
+            playNotificationSound();
 
             // Desktop Notification
             if (Notification.permission === "granted") {
@@ -695,8 +715,7 @@
                 testBtn.innerText = '🔊 Sesi Test Et';
                 testBtn.style.marginTop = '10px';
                 testBtn.onclick = function () {
-                    notifSound.currentTime = 0;
-                    notifSound.play().then(() => alert("Ses çalıyor mu?")).catch(e => alert("Hata: " + e.message));
+                    playNotificationSound();
                 };
 
                 // Insert before close button
