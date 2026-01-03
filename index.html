@@ -502,6 +502,14 @@
         </div>
     </div>
 
+    <!-- AUDIO ELEMENT -->
+    <audio id="notification-sound">
+        <!-- Simple 'Ding' Sound Base64 -->
+        <source
+            src="data:audio/mp3;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84e4KEG4SAlkOiSFFF/wDP/73/9//9/3/8/2//4/9//+///7//9////3/////3//3/7f/8P/j/5f/4//v/7//7//8P/6//t////+//3//9//+////9//3//7///9/////3/3///////f/9/3//3/7///3////3//7///9///3///3///9///////7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7///9///7//uQZAAABt0vW/yQAAAAA3S9b/JAAAAAm1bM/yQAAAAJtWzP8kAAACBAEAAQA"
+            type="audio/mpeg">
+    </audio>
+
     <script>
         /**
          * ------------------------------------------------------------------
@@ -535,6 +543,9 @@
             avatar: localStorage.getItem('profileAvatar') || '' // Base64 string
         };
 
+        // Connection time for tracking new messages
+        const initialConnectionTime = Date.now();
+
         // Default avatar SVG if none selected
         const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%238e44ad' stroke-width='1'%3E%3Ccircle cx='12' cy='12' r='10' fill='%231a1a1a'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white' font-family='sans-serif' font-size='10'%3E?%3C/text%3E%3C/svg%3E";
 
@@ -544,6 +555,7 @@
         const usernameInput = document.getElementById('username-input');
         const avatarPreview = document.getElementById('avatar-preview-img');
         const chatBox = document.getElementById('chat-box');
+        const notifSound = document.getElementById('notification-sound');
 
         // --- Initialization ---
         window.onload = function () {
@@ -552,11 +564,39 @@
                 modal.style.display = 'none';
                 appScreen.style.display = 'flex';
                 initializeRealtimeFeatures();
+
+                // Request Permission silently if already granted or ask
+                requestNotificationPermission();
             } else {
                 // New user, show modal
                 modal.style.display = 'flex';
             }
         };
+
+        // --- Notification Logic ---
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) return;
+
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+        }
+
+        function triggerNotification(sender, text) {
+            // Play Sound
+            try {
+                notifSound.currentTime = 0;
+                notifSound.play().catch(e => console.log("Audio permission needed interactively first"));
+            } catch (e) { }
+
+            // Desktop Notification
+            if (Notification.permission === "granted") {
+                new Notification(`Yeni Mesaj: ${sender}`, {
+                    body: text,
+                    icon: myProfile.avatar || defaultAvatar // Uses my avatar as fallback icon or simple
+                });
+            }
+        }
 
         // --- Profile Logic ---
         function handleImageUpload(event) {
@@ -600,7 +640,6 @@
             }
 
             myProfile.name = name;
-            // If no avatar selected, use default or keep empty (logic handles empty)
 
             // Save to LocalStorage
             localStorage.setItem('profileName', myProfile.name);
@@ -610,7 +649,10 @@
             modal.style.display = 'none';
             appScreen.style.display = 'flex';
 
-            // Re-init listeners if needed (safe to call multiple times or check flag)
+            // Ask for Notification
+            requestNotificationPermission();
+
+            // Re-init listeners if needed
             initializeRealtimeFeatures();
         }
 
@@ -707,7 +749,20 @@
 
         function listenForMessages() {
             db.ref('messages').limitToLast(50).on('child_added', (snapshot) => {
-                renderMessage(snapshot.val());
+                const msg = snapshot.val();
+                renderMessage(msg);
+
+                // Notification Logic
+                // 1. Not me
+                // 2. Newer than my connection time (avoid notifs for history)
+                // 3. Optional: Page visibility check (document.hidden) or just notify always
+                if (msg.user !== myProfile.name) {
+                    // Check timestamp to ensure it's a NEW message arriving now
+                    // Allow 1 second buffer or simple greater check
+                    if (msg.timestamp && msg.timestamp > initialConnectionTime) {
+                        triggerNotification(msg.user, msg.text);
+                    }
+                }
             });
         }
 
