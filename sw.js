@@ -1,5 +1,5 @@
 // Service Worker for Bizim Dünyamız PWA
-const CACHE_NAME = 'bizim-dunya-v1';
+const CACHE_NAME = 'bizim-dunya-v2';
 const urlsToCache = [
     './',
     './index.html'
