@@ -567,8 +567,11 @@
             </div>
 
             <div class="section-title">Bildirimler</div>
-            <button class="btn btn-secondary" style="width:100%" onclick="requestNotifyPermission()">Bildirim İzni Ver
-                🔔</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" style="flex:1" onclick="requestNotifyPermission()">İzin Ver
+                    🔔</button>
+                <button class="btn btn-secondary" style="flex:1" onclick="playPing()">Test Et �</button>
+            </div>
 
             <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="saveSettings()">Kaydet ve
                 Başla</button>
@@ -858,6 +861,7 @@
                 payload.type = 'text';
                 payload.content = text;
                 input.value = ''; // clear input
+                input.focus(); // Keep focus
             } else if (type === 'image') {
                 payload.type = 'image';
                 payload.content = content; // base64
@@ -884,11 +888,15 @@
                 if (msg.sender !== currentUser.nick) {
                     playPing();
 
-                    if (document.hidden && Notification.permission === "granted") {
-                        new Notification(`Mesaj: ${msg.sender}`, {
-                            body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content,
-                            icon: msg.avatar || defaultAvatar
-                        });
+                    if (Notification.permission === "granted") {
+                        // Only if hidden OR simple check (some browsers manage this automatically)
+                        if (document.hidden) {
+                            new Notification(`Mesaj: ${msg.sender}`, {
+                                body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content,
+                                icon: msg.avatar || defaultAvatar,
+                                tag: 'chat-msg' // Avoid stacking too many
+                            });
+                        }
                     }
                 }
             });
