@@ -691,17 +691,35 @@
 
         // --- Audio Context for Notifications ---
         let audioCtx;
-        function playPing() {
+
+        // Unlock AudioContext on first user interaction
+        document.addEventListener('click', () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
 
+        function playPing() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Browser might block this if not triggered by user, but the global listener handles the unlock
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => beep());
+            } else {
+                beep();
+            }
+        }
+
+        function beep() {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            osc.className = 'osc';
+            // Better sound: C6 -> C5 (Ding effect)
+            osc.frequency.setValueAtTime(1046.5, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(523.25, audioCtx.currentTime + 0.1);
+
             gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
 
@@ -710,9 +728,14 @@
         }
 
         function requestNotifyPermission() {
-            if ("Notification" in window) Notification.requestPermission();
-            // Also init audio context on user gesture
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        // Test sound
+                        playPing();
+                    }
+                });
+            }
         }
 
         // --- UI Logic ---
@@ -843,6 +866,8 @@
             db.ref('messages').push(payload);
         }
 
+        const loadTime = Date.now();
+
         function initRealtime() {
             if (!db) return;
             const chatArea = document.getElementById('chat-area');
@@ -852,14 +877,19 @@
                 const msg = snapshot.val();
                 renderMessage(msg);
 
-                // Notification (Logic: Recipient is me, Page Hidden, or Msg from others)
-                if (msg.sender !== currentUser.nick && document.hidden) {
-                    if (Notification.permission === "granted") {
-                        new Notification(`Mesaj: ${msg.sender}`, { body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content });
+                // IGNORE existing messages for notifications
+                if (!msg.timestamp || msg.timestamp < loadTime) return;
+
+                // Logic: Message is NEW and NOT from me
+                if (msg.sender !== currentUser.nick) {
+                    playPing();
+
+                    if (document.hidden && Notification.permission === "granted") {
+                        new Notification(`Mesaj: ${msg.sender}`, {
+                            body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content,
+                            icon: msg.avatar || defaultAvatar
+                        });
                     }
-                    playPing();
-                } else if (msg.sender !== currentUser.nick) {
-                    playPing();
                 }
             });
         }
