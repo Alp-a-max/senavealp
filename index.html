@@ -558,13 +558,6 @@
 
 <body>
 
-    <!-- HIDDEN AUDIO ELEMENT (Base64 Sound) -->
-    <audio id="notify-sound" preload="auto">
-        <source
-            src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbqWEzM2Cfut2tYzM0YZ663a1jMzRhnrdfrWMzNGGet1+tYzM0YZ63X61jMzRhnrdfrWMzNQ=="
-            type="audio/wav">
-    </audio>
-
     <!-- SYSTEM START OVERLAY -->
     <div id="start-overlay">
         <div class="start-content">
@@ -624,7 +617,7 @@
             <div style="display: flex; gap: 10px;">
                 <button class="btn btn-secondary" style="flex:1" onclick="requestNotifyPermission()">İzin Ver
                     🔔</button>
-                <button class="btn btn-secondary" style="flex:1" onclick="playSound()">Test Et 🔊</button>
+                <button class="btn btn-secondary" style="flex:1" onclick="testSound()">Test Et 🔊</button>
             </div>
 
             <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="saveSettings()">Kaydet ve
@@ -700,30 +693,89 @@
             console.error("Firebase Hatası:", e);
         }
 
-        // --- SOUND SYSTEM ---
-        const notifySound = document.getElementById('notify-sound');
-        notifySound.volume = 1.0;
+        // --- SOUND SYSTEM (Web Audio API) ---
+        let audioContext = null;
 
-        function enableSystem() {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(perm => {
-                    console.log("Permission:", perm);
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log("AudioContext oluşturuldu:", audioContext.state);
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("AudioContext devreye alındı");
                 });
             }
-
-            // Play sound to unlock
-            notifySound.play().then(() => {
-                console.log("Ses Kilidi Açıldı");
-            }).catch(e => {
-                console.error("Ses hatası:", e);
-            });
-
-            document.getElementById('start-overlay').style.display = 'none';
         }
 
         function playSound() {
-            notifySound.currentTime = 0;
-            notifySound.play().catch(e => console.error("Playback failed:", e));
+            console.log("🔊 playSound() çağrıldı");
+
+            if (!audioContext) {
+                initAudioContext();
+            }
+
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    generateBeep();
+                });
+            } else {
+                generateBeep();
+            }
+        }
+
+        function generateBeep() {
+            console.log("🎵 Ses üretiliyor...");
+
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Notification beep: 800Hz -> 600Hz (pleasant sound)
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+
+                // Volume envelope
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+
+                console.log("✅ Ses başarıyla çalındı");
+            } catch (e) {
+                console.error("❌ Ses çalma hatası:", e);
+                alert("Ses çalınamadı: " + e.message);
+            }
+        }
+
+        function testSound() {
+            console.log("🧪 Test butonu basıldı");
+            playSound();
+            alert("Ses çalındı! Eğer duymadıysanız:\n- Cihaz sesini kontrol edin\n- Rahatsız etme modunu kapatın\n- Tarayıcı console'unu kontrol edin (F12)");
+        }
+
+        function enableSystem() {
+            console.log("🚀 Sistem başlatılıyor...");
+
+            if ("Notification" in window) {
+                Notification.requestPermission().then(perm => {
+                    console.log("Bildirim izni:", perm);
+                });
+            }
+
+            // Initialize audio
+            initAudioContext();
+
+            // Play test sound
+            setTimeout(() => {
+                playSound();
+            }, 500);
+
+            document.getElementById('start-overlay').style.display = 'none';
         }
 
         function triggerVibration() {
