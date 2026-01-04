@@ -337,7 +337,6 @@
             overflow-y: auto;
             padding: 20px 15px;
             padding-bottom: 100px;
-            /* Space for input */
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -366,7 +365,6 @@
             flex-shrink: 0;
         }
 
-        /* Content Wrapper for Name + Bubble */
         .msg-content {
             display: flex;
             flex-direction: column;
@@ -398,7 +396,6 @@
 
         .msg-row.mine .msg-bubble {
             border-bottom-right-radius: 4px;
-            /* Background set via inline style for custom color */
         }
 
         .msg-row.other .msg-bubble {
@@ -406,12 +403,10 @@
             border-bottom-left-radius: 4px;
         }
 
-        /* Sticker Handling */
         .sticker-img {
             max-width: 150px;
             border-radius: 16px;
             display: block;
-            /* Shadow using the message color */
             border: 2px solid transparent;
         }
 
@@ -493,12 +488,6 @@
             box-shadow: 0 4px 10px rgba(142, 68, 173, 0.3);
         }
 
-        /* Hidden File Input */
-        #file-input {
-            display: none;
-        }
-
-        /* Keyframes */
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -520,7 +509,6 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.9);
             z-index: 9999;
-            /* Topmost */
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -570,6 +558,13 @@
 
 <body>
 
+    <!-- HIDDEN AUDIO ELEMENT (Base64 Sound) -->
+    <audio id="notify-sound" preload="auto">
+        <source
+            src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbqWEzM2Cfut2tYzM0YZ663a1jMzRhnrdfrWMzNGGet1+tYzM0YZ63X61jMzRhnrdfrWMzNQ=="
+            type="audio/wav">
+    </audio>
+
     <!-- SYSTEM START OVERLAY -->
     <div id="start-overlay">
         <div class="start-content">
@@ -585,7 +580,6 @@
         <div class="glass modal-card">
             <h2>Profil Ayarları</h2>
 
-            <!-- Avatar Section -->
             <div class="avatar-preview-container">
                 <img id="modal-avatar" src="" class="avatar-img frame-none">
             </div>
@@ -597,7 +591,6 @@
             <input type="file" id="file-input-avatar" accept="image/*" style="display:none"
                 onchange="handleAvatarUpload(event)">
 
-            <!-- Inputs -->
             <div class="form-group">
                 <div class="section-title">İsim & Hakkında</div>
                 <input type="text" id="input-nick" placeholder="Görünen İsim (Nick)" maxlength="20">
@@ -605,7 +598,6 @@
                     style="font-size: 0.9rem; opacity: 0.9;">
             </div>
 
-            <!-- Frame Selection -->
             <div class="form-group">
                 <div class="section-title">Çerçeve Seç</div>
                 <div class="frame-options">
@@ -616,7 +608,6 @@
                 </div>
             </div>
 
-            <!-- Color Selection -->
             <div class="form-group">
                 <div class="section-title">Mesaj Rengi</div>
                 <div class="color-options">
@@ -643,7 +634,6 @@
 
     <!-- MAIN APP STRUCTURE -->
     <div id="app-container">
-        <!-- Header -->
         <header class="glass">
             <div class="avatar-preview-container" style="width:45px; height:45px; margin:0;">
                 <img id="header-avatar" src="" class="avatar-img">
@@ -664,12 +654,8 @@
             </div>
         </header>
 
-        <!-- Chat Area -->
-        <div id="chat-area">
-            <!-- Messages will be injected here -->
-        </div>
+        <div id="chat-area"></div>
 
-        <!-- Input Area -->
         <div class="input-container">
             <div class="input-wrapper">
                 <button id="sticker-btn" onclick="document.getElementById('file-input-sticker').click()">
@@ -695,11 +681,6 @@
     </div>
 
     <script>
-        /** 
-         * ------------------------------------------------------------------
-         * CONFIGURATION
-         * ------------------------------------------------------------------
-         */
         const firebaseConfig = {
             apiKey: "AIzaSyDnyL0lyeJBd6PAPc4WBzcPRKhRqijEBEs",
             authDomain: "senamveben-95f8e.firebaseapp.com",
@@ -711,89 +692,73 @@
             measurementId: "G-C7GEBGBRCR"
         };
 
-        // Initialize Firebase
         let app, db;
         try {
-            if (firebaseConfig.apiKey) {
-                app = firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-            } else {
-                console.warn("Firebase Config boş! Lütfen doldurunuz.");
-            }
+            app = firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
         } catch (e) {
             console.error("Firebase Hatası:", e);
         }
 
-        // --- SOUND SYSTEM (BASE64) ---
-        // Basic Ding Sound
-        const BEEP_B64 = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbqWEzM2Cfut2tYzM0YZ663a1jMzRhnrdfrWMzNGGet1+tYzM0YZ63X61jMzRhnrdfrWMzNQ==";
+        // --- SOUND SYSTEM ---
+        const notifySound = document.getElementById('notify-sound');
+        notifySound.volume = 1.0;
 
-        const audio = new Audio(BEEP_B64);
-        audio.volume = 1.0;
-
-        // --- SYSTEM START ---
         function enableSystem() {
-            // 1. Request Permission
             if ("Notification" in window) {
                 Notification.requestPermission().then(perm => {
                     console.log("Permission:", perm);
                 });
             }
 
-            // 2. Play Sound (Unlock)
-            audio.play().then(() => {
-                console.log("Audio Unlocked");
+            // Play sound to unlock
+            notifySound.play().then(() => {
+                console.log("Ses Kilidi Açıldı");
             }).catch(e => {
-                console.error("Audio Play Error:", e);
-                // alert("Ses çalınamadı."); // Silent fail is better UI-wise, but we want confirmation.
+                console.error("Ses hatası:", e);
             });
 
-            // 3. Hide Overlay
             document.getElementById('start-overlay').style.display = 'none';
         }
 
         function playSound() {
-            audio.currentTime = 0;
-            audio.play().catch(e => console.error("Playback failed:", e));
+            notifySound.currentTime = 0;
+            notifySound.play().catch(e => console.error("Playback failed:", e));
+        }
+
+        function triggerVibration() {
+            if ("vibrate" in navigator) {
+                navigator.vibrate([50, 50, 50]); // Kısa tik-tik-tik
+            }
         }
 
         // --- Global State ---
         let currentUser = {
             nick: localStorage.getItem('user_nick') || '',
             bio: localStorage.getItem('user_bio') || '',
-            avatar: localStorage.getItem('user_avatar') || '', // dataUrl
+            avatar: localStorage.getItem('user_avatar') || '',
             color: localStorage.getItem('user_color') || '#8e44ad',
             frame: localStorage.getItem('user_frame') || 'frame-none'
         };
 
-        // --- Default Avatar SVG ---
         const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
 
-        // --- Initialization ---
         window.onload = () => {
-            // System always starts with overlay on fresh load to force interaction
-            // unless we want to check something. But audio unlock check is hard.
-
             if (currentUser.nick) {
-                // User exists
                 loadToUI();
                 closeModal();
                 initRealtime();
             } else {
-                // New user
                 document.getElementById('modal-avatar').src = defaultAvatar;
             }
 
-            // Keyboard handler for Enter
             document.getElementById('message-input').addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') sendMessage();
             });
         };
 
-        // --- UI Logic ---
         function openSettings() {
             document.getElementById('modal-overlay').classList.add('active');
-            // Fill inputs with current data
             document.getElementById('input-nick').value = currentUser.nick;
             document.getElementById('input-bio').value = currentUser.bio;
             document.getElementById('modal-avatar').src = currentUser.avatar || defaultAvatar;
@@ -811,7 +776,6 @@
             document.getElementById('header-avatar').className = `avatar-img ${currentUser.frame}`;
         }
 
-        // --- Settings Logic ---
         function selectColor(color, el) {
             currentUser.color = color;
             document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
@@ -839,7 +803,6 @@
             currentUser.nick = nick;
             currentUser.bio = document.getElementById('input-bio').value.trim();
 
-            // Save to LocalStorage
             localStorage.setItem('user_nick', currentUser.nick);
             localStorage.setItem('user_bio', currentUser.bio);
             localStorage.setItem('user_avatar', currentUser.avatar);
@@ -861,7 +824,6 @@
             }
         }
 
-        // --- Image Processing (Canvas) ---
         function processImage(file, maxSize, callback) {
             if (!file) return;
             const reader = new FileReader();
@@ -873,7 +835,6 @@
                     let w = img.width;
                     let h = img.height;
 
-                    // Maintain aspect ratio
                     if (w > h) {
                         if (w > maxSize) { h *= maxSize / w; w = maxSize; }
                     } else {
@@ -885,7 +846,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, w, h);
 
-                    // Compress to JPEG 0.6
                     callback(canvas.toDataURL('image/jpeg', 0.6));
                 };
             };
@@ -893,13 +853,11 @@
         }
 
         function handleStickerUpload(event) {
-            // Stickers max 150px
             processImage(event.target.files[0], 150, (base64) => {
                 sendMessage('image', base64);
             });
         }
 
-        // --- Chat Logic ---
         function sendMessage(type = 'text', content = null) {
             if (!db) return alert("Firebase ayarı yapılmamış!");
 
@@ -917,11 +875,11 @@
                 if (!text) return;
                 payload.type = 'text';
                 payload.content = text;
-                input.value = ''; // clear input
+                input.value = '';
                 input.focus();
             } else if (type === 'image') {
                 payload.type = 'image';
-                payload.content = content; // base64
+                payload.content = content;
             }
 
             db.ref('messages').push(payload);
@@ -933,17 +891,17 @@
             if (!db) return;
             const chatArea = document.getElementById('chat-area');
 
-            // Limit to last 50 messages to save data/dom
             db.ref('messages').limitToLast(50).on('child_added', (snapshot) => {
                 const msg = snapshot.val();
                 renderMessage(msg);
 
-                // IGNORE existing messages for notifications
+                // IGNORE existing messages
                 if (!msg.timestamp || msg.timestamp < loadTime) return;
 
-                // Logic: Message is NEW and NOT from me
+                // ONLY notify if sender is NOT me
                 if (msg.sender !== currentUser.nick) {
                     playSound();
+                    triggerVibration();
 
                     if (document.hidden && Notification.permission === "granted") {
                         new Notification(`Mesaj: ${msg.sender}`, {
@@ -962,18 +920,14 @@
             const div = document.createElement('div');
             div.className = `msg-row ${isMine ? 'mine' : 'other'}`;
 
-            // Avatar
             const avatarHtml = `<div class="avatar-preview-container" style="width:32px; height:32px; margin:0; flex-shrink:0;">
                 <img src="${msg.avatar || defaultAvatar}" class="avatar-img ${msg.frame || 'frame-none'}">
             </div>`;
 
-            // Content
             let contentHtml = '';
             if (msg.type === 'image') {
-                // Image - Apply shadow of user's color
                 contentHtml = `<img src="${msg.content}" class="sticker-img" style="box-shadow: 0 4px 12px ${msg.color || '#8e44ad'}">`;
             } else {
-                // Text Bubble
                 const bgStyle = isMine ? `background: ${msg.color || '#8e44ad'}` : '';
                 contentHtml = `<div class="msg-bubble" style="${bgStyle}">${escapeHtml(msg.content)}</div>`;
             }
@@ -983,7 +937,6 @@
                 : `${avatarHtml}<div class="msg-content"><div class="msg-name">${escapeHtml(msg.sender)}</div>${contentHtml}</div>`;
 
             chatArea.appendChild(div);
-            // Scroll to bottom
             setTimeout(() => chatArea.scrollTop = chatArea.scrollHeight, 100);
         }
 
