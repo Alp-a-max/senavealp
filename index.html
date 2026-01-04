@@ -5,9 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#121212">
+    <meta name="theme-color" content="#8e44ad">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bizim Dünyamız">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238e44ad'/><text x='50' y='65' text-anchor='middle' font-size='40' fill='white'>💜</text></svg>">
     <title>Bizim Dünyamız</title>
 
     <!-- Google Fonts -->
@@ -955,12 +959,22 @@
                     playSound();
                     triggerVibration();
 
-                    if (document.hidden && Notification.permission === "granted") {
+                    // Standard notification
+                    if (Notification.permission === "granted") {
                         new Notification(`Mesaj: ${msg.sender}`, {
                             body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content,
-                            icon: msg.avatar || defaultAvatar
+                            icon: msg.avatar || defaultAvatar,
+                            tag: 'bizim-dunya-msg',
+                            renotify: true,
+                            requireInteraction: true
                         });
                     }
+
+                    // Also try Service Worker notification (works better in background)
+                    sendSWNotification(
+                        `Mesaj: ${msg.sender}`,
+                        msg.type === 'image' ? '📷 Fotoğraf' : msg.content
+                    );
                 }
             });
         }
@@ -995,6 +1009,82 @@
         function escapeHtml(text) {
             if (!text) return "";
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // --- SERVICE WORKER & PWA ---
+        let swRegistration = null;
+        let deferredPrompt = null;
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then((registration) => {
+                    console.log('✅ Service Worker kayıtlı:', registration.scope);
+                    swRegistration = registration;
+                })
+                .catch((error) => {
+                    console.error('❌ Service Worker kaydı başarısız:', error);
+                });
+        }
+
+        // Handle install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('📲 Uygulama kurulabilir');
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show install button
+            showInstallButton();
+        });
+
+        function showInstallButton() {
+            // Create install button if not exists
+            if (!document.getElementById('install-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'install-btn';
+                btn.innerHTML = '📲 Uygulamayı Yükle';
+                btn.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 15px;
+                    background: linear-gradient(135deg, #8e44ad, #ff0099);
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 1000;
+                    box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+                    animation: pulse-animation 2s infinite;
+                `;
+                btn.onclick = installApp;
+                document.body.appendChild(btn);
+            }
+        }
+
+        async function installApp() {
+            if (!deferredPrompt) return;
+
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('Kurulum sonucu:', outcome);
+
+            if (outcome === 'accepted') {
+                document.getElementById('install-btn')?.remove();
+            }
+            deferredPrompt = null;
+        }
+
+        // Send notification via Service Worker
+        function sendSWNotification(title, body) {
+            if (swRegistration && swRegistration.active) {
+                swRegistration.active.postMessage({
+                    type: 'SHOW_NOTIFICATION',
+                    title: title,
+                    body: body
+                });
+            }
         }
 
     </script>
