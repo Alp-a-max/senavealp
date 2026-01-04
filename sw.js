@@ -1,8 +1,8 @@
 // Service Worker for Bizim Dünyamız PWA
 const CACHE_NAME = 'bizim-dunya-v1';
 const urlsToCache = [
-    '/',
-    '/index.html'
+    './',
+    './index.html'
 ];
 
 // Install event - cache files
@@ -99,7 +99,7 @@ self.addEventListener('notificationclick', (event) => {
                 }
                 // Otherwise open new window
                 if (clients.openWindow) {
-                    return clients.openWindow('/index.html');
+                    return clients.openWindow('./index.html');
                 }
             })
     );
