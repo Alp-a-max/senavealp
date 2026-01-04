@@ -730,15 +730,25 @@
         // --- SOUND SYSTEM (Web Audio API) ---
         let audioContext = null;
 
+        // --- GLOBAL AUDIO UNLOCK ---
+        document.addEventListener('touchstart', function () {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("👆 Dokunma ile ses kilidi açıldı");
+                });
+            } else if (!audioContext) {
+                initAudioContext();
+            }
+        }, { once: false }); // Check on every touch
+
         function initAudioContext() {
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log("AudioContext oluşturuldu:", audioContext.state);
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
             }
+            // Always try to resume
             if (audioContext.state === 'suspended') {
-                audioContext.resume().then(() => {
-                    console.log("AudioContext devreye alındı");
-                });
+                audioContext.resume();
             }
         }
 
