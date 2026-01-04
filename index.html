@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Bizim Dünyamız</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Firebase SDKs (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -18,296 +21,343 @@
 
     <style>
         :root {
-            --bg-color: #121212;
+            --bg-color: #000000;
             --primary: #8e44ad;
-            --neon-pink: #ff0099;
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            /* Slightly more visible */
-            --glass-border: rgba(255, 255, 255, 0.15);
+            --accent: #ff0099;
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
             --text-color: #ffffff;
             --text-muted: #aaaaaa;
-            --msg-sent: #7d3c98;
-            --msg-received: #2c2c2c;
+            --input-bg: rgba(255, 255, 255, 0.08);
+            --msg-me: #8e44ad;
+            /* Default, will be overridden by user pref */
+            --msg-other: #2c2c2c;
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Outfit', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            /* Mobile fix: use dvh for dynamic viewport height handling */
             height: 100dvh;
+            /* Critical for mobile */
+            width: 100vw;
             overflow: hidden;
             display: flex;
             justify-content: center;
-            align-items: center;
-            background-image: radial-gradient(circle at 10% 20%, rgba(142, 68, 173, 0.25) 0%, transparent 30%),
-                radial-gradient(circle at 90% 80%, rgba(255, 0, 153, 0.2) 0%, transparent 30%);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(142, 68, 173, 0.3) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 153, 0.25) 0%, transparent 40%);
+            background-size: cover;
+            background-attachment: fixed;
         }
 
-        /* Glassmorphism Utilities */
+        /* --- UI Components --- */
         .glass {
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
         }
 
-        /* Modal / Profile Setup */
+        .btn {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* --- Modal (Settings/Profile) --- */
         #modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
             display: flex;
-            /* Flex but hidden initially via opacity/visibility or JS */
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        #modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
         }
 
         .modal-card {
-            padding: 2rem;
             width: 90%;
-            max-width: 350px;
+            max-width: 400px;
+            max-height: 90dvh;
+            overflow-y: auto;
+            border-radius: 24px;
+            padding: 2rem;
             text-align: center;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 16px;
         }
 
-        .avatar-preview {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: 2px solid var(--neon-pink);
-            margin: 0 auto;
-            object-fit: cover;
-            background: rgba(255, 255, 255, 0.1);
-            display: block;
+        .section-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            text-align: left;
+            width: 100%;
         }
 
-        .file-input-label {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            width: fit-content;
-            margin: 0 auto;
-            border: 1px solid var(--glass-border);
-        }
-
-        input[type="file"] {
-            display: none;
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
         }
 
         input[type="text"] {
             width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.05);
+            padding: 14px;
+            background: var(--input-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 10px;
+            border-radius: 12px;
             color: white;
             outline: none;
-            transition: 0.3s;
             text-align: center;
+            font-size: 1rem;
         }
 
         input[type="text"]:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 10px rgba(142, 68, 173, 0.3);
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--neon-pink));
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            transition: 0.3s;
+        /* Avatar Frames */
+        .avatar-preview-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
         }
 
-        .btn-primary:active {
-            transform: scale(0.98);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid var(--glass-border);
-            color: #ddd;
-            padding: 8px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        /* Main App */
-        #app-screen {
-            display: none;
-            /* Hidden by default */
+        .avatar-img {
             width: 100%;
             height: 100%;
-            max-width: 550px;
-            /* Slight increase for desktop comfort */
+            border-radius: 50%;
+            object-fit: cover;
+            background: #222;
+        }
+
+        /* Frame Styles */
+        .frame-none {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .frame-gold {
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+
+        .frame-neon {
+            border: 3px solid #00F3FF;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
+        }
+
+        .frame-heart {
+            border: 3px solid #ff0099;
+            box-shadow: 0 0 15px rgba(255, 0, 153, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 153, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 0, 153, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 153, 0);
+            }
+        }
+
+        /* Color Options */
+        .color-options {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .color-circle {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-circle.selected {
+            transform: scale(1.2);
+            border-color: white;
+        }
+
+        /* Frame Options */
+        .frame-options {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .frame-select-btn {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ddd;
+            cursor: pointer;
+        }
+
+        .frame-select-btn.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* --- Main App Layout --- */
+        #app-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            display: flex;
             flex-direction: column;
             position: relative;
         }
 
         /* Header */
         header {
-            padding: 15px;
-            text-align: center;
-            border-radius: 0 0 20px 20px;
-            margin-bottom: 10px;
-            position: relative;
+            flex-shrink: 0;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid var(--glass-border);
+            border-radius: 0 0 24px 24px;
+            background: rgba(20, 20, 20, 0.8);
             z-index: 10;
         }
 
-        header h1 {
-            font-size: 1.4rem;
+        .header-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-info h1 {
+            font-size: 1.1rem;
             font-weight: 600;
-            letter-spacing: 0.5px;
+            margin-bottom: 2px;
         }
 
-        .anniversary {
-            font-size: 0.75rem;
-            color: var(--neon-pink);
-            margin-top: 4px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .header-info .bio {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
         }
 
-        .settings-btn {
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            background: none;
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: transparent;
             border: none;
-            color: var(--text-color);
+            color: white;
             cursor: pointer;
-            opacity: 0.7;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
         }
 
-        /* Mood Tracker */
-        .mood-panel {
-            margin: 0 10px 10px 10px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .mood-buttons {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            gap: 10px;
-        }
-
-        .mood-btn {
-            font-size: 1.6rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid transparent;
-            border-radius: 15px;
-            width: 55px;
-            height: 55px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .mood-btn:hover,
-        .mood-btn.active {
-            background: rgba(142, 68, 173, 0.25);
-            border-color: var(--primary);
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(142, 68, 173, 0.4);
-        }
-
-        .partner-status {
-            font-size: 0.85rem;
-            margin-top: 12px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.08);
-            /* Slightly lighter */
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: slideDown 0.3s ease;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         /* Chat Area */
-        .chat-container {
+        #chat-area {
             flex: 1;
-            margin: 0 10px;
             overflow-y: auto;
-            overflow-x: hidden;
+            padding: 20px 15px;
+            padding-bottom: 100px;
+            /* Space for input */
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            /* Padding bottom MUST match or exceed input area height + margin */
-            padding-bottom: 90px;
-            -webkit-overflow-scrolling: touch;
-            /* Smooth scrolling on iOS */
-        }
-
-        .chat-container::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .chat-container::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            gap: 15px;
+            scroll-behavior: smooth;
         }
 
         /* Messages */
-        .message-wrapper {
+        .msg-row {
             display: flex;
             align-items: flex-end;
-            gap: 8px;
+            gap: 10px;
             max-width: 85%;
-            animation: fadeIn 0.3s ease-out;
+            animation: fadeIn 0.3s ease;
         }
 
-        .message-wrapper.sent {
+        .msg-row.mine {
             align-self: flex-end;
             flex-direction: row-reverse;
-        }
-
-        .message-wrapper.received {
-            align-self: flex-start;
         }
 
         .msg-avatar {
@@ -315,184 +365,260 @@
             height: 32px;
             border-radius: 50%;
             object-fit: cover;
-            border: 1px solid var(--glass-border);
             flex-shrink: 0;
-            background-color: #333;
         }
 
-        .message-bubble {
-            padding: 10px 14px;
+        /* Content Wrapper for Name + Bubble */
+        .msg-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .msg-name {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .msg-row.mine .msg-name {
+            text-align: right;
+            margin-right: 4px;
+            margin-left: 0;
+        }
+
+        .msg-bubble {
+            padding: 12px 16px;
             border-radius: 18px;
-            position: relative;
             font-size: 0.95rem;
             line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        .message-wrapper.sent .message-bubble {
-            background: var(--msg-sent);
-            /* Purple */
-            border-bottom-right-radius: 4px;
             color: white;
+            position: relative;
+            word-break: break-word;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
-        .message-wrapper.received .message-bubble {
-            background: var(--msg-received);
-            /* Dark Gray */
+        .msg-row.mine .msg-bubble {
+            border-bottom-right-radius: 4px;
+            /* Background set via inline style for custom color */
+        }
+
+        .msg-row.other .msg-bubble {
+            background: var(--msg-other);
             border-bottom-left-radius: 4px;
-            color: #ececec;
         }
 
-        .msg-meta {
-            font-size: 0.65rem;
-            margin-top: 4px;
-            opacity: 0.7;
-            text-align: right;
-            display: flex;
-            justify-content: flex-end;
-            gap: 5px;
-        }
-
-        .sender-name-label {
-            font-weight: 600;
-            font-size: 0.7rem;
-            margin-bottom: 2px;
-            color: var(--neon-pink);
+        /* Sticker Handling */
+        .sticker-img {
+            max-width: 150px;
+            border-radius: 16px;
             display: block;
+            /* Shadow using the message color */
+            border: 2px solid transparent;
         }
 
-        /* Input Area - Fixed at bottom */
-        .input-area {
+        /* Input Area */
+        .input-container {
             position: fixed;
-            /* Fixed as requested */
             bottom: 0;
             left: 0;
             width: 100%;
-            padding: 12px;
+            padding: 10px 15px;
+            padding-bottom: calc(10px + var(--safe-area-bottom));
+            background: rgba(18, 18, 18, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
             display: flex;
             justify-content: center;
-            align-items: center;
             z-index: 100;
         }
 
-        /* Inner container to constrain width on desktop */
-        .input-inner-wrapper {
+        .input-wrapper {
             width: 100%;
-            max-width: 550px;
+            max-width: 600px;
             display: flex;
+            align-items: center;
             gap: 10px;
-            position: relative;
-            background: rgba(18, 18, 18, 0.95);
-            /* Opaque background to hide scrolling chat */
-            backdrop-filter: blur(15px);
-            padding: 10px;
-            border-radius: 20px 20px 0 0;
-            border-top: 1px solid var(--glass-border);
-            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+            background: var(--input-bg);
+            padding: 8px;
+            border-radius: 28px;
+            border: 1px solid var(--glass-border);
         }
 
-        .input-inner-wrapper input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.08);
+        #sticker-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
-            border-radius: 24px;
-            padding: 12px 16px;
-            color: white;
-            font-size: 0.95rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .input-inner-wrapper input:focus {
-            background: rgba(255, 255, 255, 0.12);
+        #sticker-btn:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #message-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px 5px;
+            font-size: 1rem;
+            text-align: left;
+        }
+
+        #message-input:focus {
+            border: none;
+            outline: none;
             box-shadow: none;
         }
 
-        .send-btn {
-            width: 44px;
-            height: 44px;
+        #send-btn {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-            flex-shrink: 0;
             background: var(--primary);
-            box-shadow: 0 4px 10px rgba(142, 68, 173, 0.4);
             border: none;
             color: white;
-            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(142, 68, 173, 0.3);
         }
 
-        .send-btn:active {
-            transform: scale(0.9);
+        /* Hidden File Input */
+        #file-input {
+            display: none;
+        }
+
+        /* Keyframes */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- PROFILE / LOGIN MODAL -->
-    <div id="modal-overlay">
+    <!-- SETTINGS / PROFILE MODAL -->
+    <div id="modal-overlay" class="active">
         <div class="glass modal-card">
-            <h2 id="modal-title">Profilini Oluştur</h2>
+            <h2>Profil Ayarları</h2>
 
-            <label for="file-upload" class="avatar-wrapper">
-                <img id="avatar-preview-img"
-                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23ff0099' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"
-                    class="avatar-preview" alt="Avatar">
-            </label>
-            <label class="file-input-label">
-                Fotoğraf Seç
-                <input type="file" id="file-upload" accept="image/*" onchange="handleImageUpload(event)">
-            </label>
+            <!-- Avatar Section -->
+            <div class="avatar-preview-container">
+                <img id="modal-avatar" src="" class="avatar-img frame-none">
+            </div>
 
-            <input type="text" id="username-input" placeholder="Adın ne? (Örn: Alp)" maxlength="15">
+            <button class="btn btn-secondary" style="margin: 0 auto; font-size: 0.8rem;"
+                onclick="document.getElementById('file-input-avatar').click()">
+                Fotoğraf Değiştir
+            </button>
+            <input type="file" id="file-input-avatar" accept="image/*" style="display:none"
+                onchange="handleAvatarUpload(event)">
 
-            <button class="btn-primary" onclick="saveProfileAndStart()">Başla</button>
-            <button id="close-modal-btn" class="btn-secondary" style="display:none;"
-                onclick="closeModal()">Kapat</button>
+            <!-- Inputs -->
+            <div class="form-group">
+                <div class="section-title">İsim & Hakkında</div>
+                <input type="text" id="input-nick" placeholder="Görünen İsim (Nick)" maxlength="20">
+                <input type="text" id="input-bio" placeholder="Kısa Söz (Örn: Seni seviyorum)" maxlength="30"
+                    style="font-size: 0.9rem; opacity: 0.9;">
+            </div>
+
+            <!-- Frame Selection -->
+            <div class="form-group">
+                <div class="section-title">Çerçeve Seç</div>
+                <div class="frame-options">
+                    <div class="frame-select-btn selected" onclick="selectFrame('frame-none', this)">Yok</div>
+                    <div class="frame-select-btn" onclick="selectFrame('frame-gold', this)">Altın</div>
+                    <div class="frame-select-btn" onclick="selectFrame('frame-neon', this)">Neon</div>
+                    <div class="frame-select-btn" onclick="selectFrame('frame-heart', this)">Kalp</div>
+                </div>
+            </div>
+
+            <!-- Color Selection -->
+            <div class="form-group">
+                <div class="section-title">Mesaj Rengi</div>
+                <div class="color-options">
+                    <div class="color-circle selected" style="background: #8e44ad;"
+                        onclick="selectColor('#8e44ad', this)"></div>
+                    <div class="color-circle" style="background: #ff0099;" onclick="selectColor('#ff0099', this)"></div>
+                    <div class="color-circle" style="background: #e74c3c;" onclick="selectColor('#e74c3c', this)"></div>
+                    <div class="color-circle" style="background: #2ecc71;" onclick="selectColor('#2ecc71', this)"></div>
+                    <div class="color-circle" style="background: #3498db;" onclick="selectColor('#3498db', this)"></div>
+                </div>
+            </div>
+
+            <div class="section-title">Bildirimler</div>
+            <button class="btn btn-secondary" style="width:100%" onclick="requestNotifyPermission()">Bildirim İzni Ver
+                🔔</button>
+
+            <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="saveSettings()">Kaydet ve
+                Başla</button>
         </div>
     </div>
 
-    <!-- MAIN APPLICATION -->
-    <div id="app-screen">
+    <!-- MAIN APP STRUCTURE -->
+    <div id="app-container">
+        <!-- Header -->
         <header class="glass">
-            <button class="settings-btn" onclick="openSettings()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path
-                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                    </path>
-                </svg>
-            </button>
-            <h1>Bizim Dünyamız</h1>
-            <div class="anniversary">Yıl Dönümümüz: 2 Ağustos</div>
+            <div class="avatar-preview-container" style="width:45px; height:45px; margin:0;">
+                <img id="header-avatar" src="" class="avatar-img">
+            </div>
+            <div class="header-info">
+                <h1 id="header-nick">Kullanıcı</h1>
+                <div id="header-bio" class="bio">Durum yok</div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="openSettings()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
         </header>
 
-        <!-- Mood Tracker -->
-        <div class="glass mood-panel">
-            <div class="mood-buttons">
-                <!-- Emojis -->
-                <div class="mood-btn" onclick="setMood('😴')">😴</div>
-                <div class="mood-btn" onclick="setMood('⚡')">⚡</div>
-                <div class="mood-btn" onclick="setMood('❤️')">❤️</div>
-                <div class="mood-btn" onclick="setMood('🎮')">🎮</div>
-            </div>
-            <div id="partner-mood-display" class="partner-status" style="display: none;"></div>
-        </div>
-
         <!-- Chat Area -->
-        <div id="chat-box" class="chat-container">
-            <!-- Messages injected here -->
+        <div id="chat-area">
+            <!-- Messages will be injected here -->
         </div>
 
-        <!-- Input Area (Fixed Bottom) -->
-        <div class="input-area">
-            <div class="input-inner-wrapper">
-                <input type="text" id="message-input" placeholder="Bir şeyler yaz..." onkeypress="handleKeyPress(event)"
-                    autocomplete="off">
-                <button class="send-btn" onclick="sendMessage()">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        <!-- Input Area -->
+        <div class="input-container">
+            <div class="input-wrapper">
+                <button id="sticker-btn" onclick="document.getElementById('file-input-sticker').click()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <input type="file" id="file-input-sticker" accept="image/*" style="display:none"
+                    onchange="handleStickerUpload(event)">
+
+                <input type="text" id="message-input" placeholder="Bir şeyler yaz..." autocomplete="off">
+
+                <button id="send-btn" onclick="sendMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -502,366 +628,278 @@
         </div>
     </div>
 
-    <!-- AUDIO ELEMENT REMOVED - USING WEB AUDIO API -->
-
     <script>
-        /**
+        /** 
          * ------------------------------------------------------------------
-         * FIREBASE CONFIGURATION
+         * CONFIGURATION
          * ------------------------------------------------------------------
          */
-        // BURAYA KENDİ FIREBASE KODLARINI YAPIŞTIR
+        // LÜTFEN FIREBASE AYARLARINI BURAYA GİRİNİZ:
         const firebaseConfig = {
-            apiKey: "AIzaSyDnYL0lyeJBd6PApC4WBzcPRKhRqijEBEs",
-            authDomain: "senamveben-95f8e.firebaseapp.com",
-            databaseURL: "https://senamveben-95f8e-default-rtdb.firebaseio.com",
-            projectId: "senamveben-95f8e",
-            storageBucket: "senamveben-95f8e.firebasestorage.app",
-            messagingSenderId: "806503833732",
-            appId: "1:806503833732:web:b3af455983c1a783a622d1",
-            measurementId: "G-C7GEBGBRCR"
+            apiKey: "",
+            authDomain: "",
+            databaseURL: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
         };
 
         // Initialize Firebase
         let app, db;
         try {
-            app = firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
+            if (firebaseConfig.apiKey) {
+                app = firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } else {
+                console.warn("Firebase Config boş! Lütfen doldurunuz.");
+            }
         } catch (e) {
-            console.error("Firebase init error:", e);
+            console.error("Firebase Hatası:", e);
         }
 
         // --- Global State ---
-        let myProfile = {
-            name: localStorage.getItem('profileName') || '',
-            avatar: localStorage.getItem('profileAvatar') || '' // Base64 string
+        let currentUser = {
+            nick: localStorage.getItem('user_nick') || '',
+            bio: localStorage.getItem('user_bio') || '',
+            avatar: localStorage.getItem('user_avatar') || '', // dataUrl
+            color: localStorage.getItem('user_color') || '#8e44ad',
+            frame: localStorage.getItem('user_frame') || 'frame-none'
         };
 
-        // Connection time for tracking new messages
-        const initialConnectionTime = Date.now();
-
-        // Default avatar SVG if none selected
-        const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%238e44ad' stroke-width='1'%3E%3Ccircle cx='12' cy='12' r='10' fill='%231a1a1a'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white' font-family='sans-serif' font-size='10'%3E?%3C/text%3E%3C/svg%3E";
-
-        const modal = document.getElementById('modal-overlay');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const appScreen = document.getElementById('app-screen');
-        const usernameInput = document.getElementById('username-input');
-        const avatarPreview = document.getElementById('avatar-preview-img');
-        const chatBox = document.getElementById('chat-box');
-
-        // --- Web Audio API Setup ---
-        // Robust sound generation without files
-        let audioCtx;
-
-        function initAudio() {
-            if (!audioCtx) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (AudioContext) {
-                    audioCtx = new AudioContext();
-                }
-            }
-        }
-
-        function playNotificationSound() {
-            // Ensure context is running
-            initAudio();
-            if (!audioCtx) return;
-
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            // Create Oscillator (Synthesizer)
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            // Sound Config (Pleasant Ding)
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-            oscillator.frequency.exponentialRampToValueAtTime(1046.5, audioCtx.currentTime + 0.1); // C6
-
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.5);
-        }
+        // --- Default Avatar SVG ---
+        const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
 
         // --- Initialization ---
-        window.onload = function () {
-            if (myProfile.name) {
-                // User exists, show app directly
-                modal.style.display = 'none';
-                appScreen.style.display = 'flex';
-                initializeRealtimeFeatures();
-
-                // Request Permission silently if already granted or ask
-                requestNotificationPermission();
-
-                // Init Audio on first interaction
-                document.body.addEventListener('click', () => {
-                    initAudio();
-                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-                }, { once: true });
-
+        window.onload = () => {
+            if (currentUser.nick) {
+                // User exists
+                loadToUI();
+                closeModal();
+                initRealtime();
             } else {
-                // New user, show modal
-                modal.style.display = 'flex';
+                // New user
+                document.getElementById('modal-avatar').src = defaultAvatar;
             }
+
+            // Keyboard handler for Enter
+            document.getElementById('message-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') sendMessage();
+            });
         };
 
-        // --- Notification Logic ---
-        function requestNotificationPermission() {
-            if (!("Notification" in window)) return;
+        // --- Audio Context for Notifications ---
+        let audioCtx;
+        function playPing() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission();
-            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
         }
 
-        function triggerNotification(sender, text) {
-            // Play Sound
-            playNotificationSound();
-
-            // Desktop Notification
-            if (Notification.permission === "granted") {
-                // Check page visibility
-                if (document.hidden) {
-                    new Notification(`Yeni Mesaj: ${sender}`, {
-                        body: text,
-                        icon: myProfile.avatar || defaultAvatar // Uses my avatar as fallback icon or simple
-                    });
-                }
-            }
+        function requestNotifyPermission() {
+            if ("Notification" in window) Notification.requestPermission();
+            // Also init audio context on user gesture
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // --- Profile Logic ---
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
+        // --- UI Logic ---
+        function openSettings() {
+            document.getElementById('modal-overlay').classList.add('active');
+            // Fill inputs with current data
+            document.getElementById('input-nick').value = currentUser.nick;
+            document.getElementById('input-bio').value = currentUser.bio;
+            document.getElementById('modal-avatar').src = currentUser.avatar || defaultAvatar;
+            document.getElementById('modal-avatar').className = `avatar-img ${currentUser.frame}`;
+
+            // Highlight current selections (simplified logic)
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function loadToUI() {
+            document.getElementById('header-nick').innerText = currentUser.nick;
+            document.getElementById('header-bio').innerText = currentUser.bio;
+            document.getElementById('header-avatar').src = currentUser.avatar || defaultAvatar;
+            document.getElementById('header-avatar').className = `avatar-img ${currentUser.frame}`;
+        }
+
+        // --- Settings Logic ---
+        function selectColor(color, el) {
+            currentUser.color = color;
+            document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function selectFrame(frameClass, el) {
+            currentUser.frame = frameClass;
+            document.getElementById('modal-avatar').className = `avatar-img ${frameClass}`;
+            document.querySelectorAll('.frame-select-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function handleAvatarUpload(event) {
+            processImage(event.target.files[0], 200, (base64) => {
+                currentUser.avatar = base64;
+                document.getElementById('modal-avatar').src = base64;
+            });
+        }
+
+        function saveSettings() {
+            const nick = document.getElementById('input-nick').value.trim();
+            if (!nick) return alert("İsim boş olamaz!");
+
+            currentUser.nick = nick;
+            currentUser.bio = document.getElementById('input-bio').value.trim();
+
+            // Save to LocalStorage
+            localStorage.setItem('user_nick', currentUser.nick);
+            localStorage.setItem('user_bio', currentUser.bio);
+            localStorage.setItem('user_avatar', currentUser.avatar);
+            localStorage.setItem('user_color', currentUser.color);
+            localStorage.setItem('user_frame', currentUser.frame);
+
+            loadToUI();
+            closeModal();
+            initRealtime();
+        }
+
+        // --- Image Processing (Canvas) ---
+        function processImage(file, maxSize, callback) {
             if (!file) return;
-
             const reader = new FileReader();
-            reader.onload = function (e) {
-                // Create an image object to resize it
+            reader.onload = (e) => {
                 const img = new Image();
                 img.src = e.target.result;
-                img.onload = function () {
-                    // Resize logic (Max width 200px)
+                img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 200;
-                    const scaleSize = MAX_WIDTH / img.width;
-                    const newWidth = MAX_WIDTH;
-                    const newHeight = img.height * scaleSize;
+                    let w = img.width;
+                    let h = img.height;
 
-                    canvas.width = newWidth;
-                    canvas.height = newHeight;
+                    // Maintain aspect ratio
+                    if (w > h) {
+                        if (w > maxSize) { h *= maxSize / w; w = maxSize; }
+                    } else {
+                        if (h > maxSize) { w *= maxSize / h; h = maxSize; }
+                    }
+
+                    canvas.width = w;
+                    canvas.height = h;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                    ctx.drawImage(img, 0, 0, w, h);
 
-                    // Convert back to Base64
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
-                    // Update preview and state
-                    avatarPreview.src = dataUrl;
-                    myProfile.avatar = dataUrl;
-                }
+                    // Compress to JPEG 0.6
+                    callback(canvas.toDataURL('image/jpeg', 0.6));
+                };
             };
             reader.readAsDataURL(file);
         }
 
-        function saveProfileAndStart() {
-            const name = usernameInput.value.trim();
-            if (!name) {
-                alert("Lütfen bir isim gir!");
-                return;
-            }
-
-            myProfile.name = name;
-
-            // Save to LocalStorage
-            localStorage.setItem('profileName', myProfile.name);
-            localStorage.setItem('profileAvatar', myProfile.avatar || "");
-
-            // UI Transition
-            modal.style.display = 'none';
-            appScreen.style.display = 'flex';
-
-            // Ask for Notification
-            requestNotificationPermission();
-
-            // Re-init listeners if needed
-            initializeRealtimeFeatures();
-
-            // Unlock audio aggressively on this interaction
-            unlockAudioContext();
-        }
-
-        function openSettings() {
-            modal.style.display = 'flex';
-            document.getElementById('modal-title').innerText = "Profili Düzenle";
-            usernameInput.value = myProfile.name;
-            if (myProfile.avatar) avatarPreview.src = myProfile.avatar;
-            closeModalBtn.style.display = 'inline-block';
-
-            // Add Test Sound Button if not exists
-            if (!document.getElementById('test-sound-btn')) {
-                const testBtn = document.createElement('button');
-                testBtn.id = 'test-sound-btn';
-                testBtn.className = 'btn-secondary';
-                testBtn.innerText = '🔊 Sesi Test Et';
-                testBtn.style.marginTop = '10px';
-                testBtn.onclick = function () {
-                    playNotificationSound();
-                };
-
-                // Insert before close button
-                const btnContainer = document.querySelector('.modal-card');
-                btnContainer.insertBefore(testBtn, closeModalBtn);
-            }
-        }
-
-        function closeModal() {
-            modal.style.display = 'none';
-        }
-
-        // --- Firebase Features ---
-        let isListenersActive = false;
-        function initializeRealtimeFeatures() {
-            if (isListenersActive || !db) return;
-            isListenersActive = true;
-            listenForMessages();
-            listenForMoods();
-        }
-
-        function setMood(emoji) {
-            if (!db) return;
-            db.ref('moods/' + myProfile.name).set({
-                mood: emoji,
-                avatar: myProfile.avatar || "",
-                timestamp: Date.now()
-            });
-            highlightMoodBtn(emoji);
-        }
-
-        function highlightMoodBtn(emoji) {
-            document.querySelectorAll('.mood-btn').forEach(btn => {
-                if (btn.innerText === emoji) btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
-        }
-
-        function listenForMoods() {
-            const display = document.getElementById('partner-mood-display');
-            db.ref('moods').on('value', (snapshot) => {
-                const moods = snapshot.val();
-                if (!moods) return;
-
-                // Find someone who comes from db who is not me
-                let partnerData = null;
-                let partnerName = '';
-
-                Object.keys(moods).forEach(key => {
-                    if (key !== myProfile.name) { // Simple logic based on name uniqueness
-                        partnerData = moods[key];
-                        partnerName = key;
-                    }
-                });
-
-                if (partnerData) {
-                    display.style.display = 'flex';
-                    // Show small avatar if exists
-                    const avatarImg = partnerData.avatar
-                        ? `<img src="${partnerData.avatar}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;margin-right:5px;">`
-                        : '';
-                    display.innerHTML = `${avatarImg} <span>${partnerData.mood}</span> <span>${partnerName} şu an böyle.</span>`;
-                }
+        function handleStickerUpload(event) {
+            // Stickers max 150px
+            processImage(event.target.files[0], 150, (base64) => {
+                sendMessage('image', base64);
             });
         }
 
         // --- Chat Logic ---
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            if (!text || !db) return;
+        function sendMessage(type = 'text', content = null) {
+            if (!db) return alert("Firebase ayarı yapılmamış!");
 
-            const now = new Date();
-            const timeString = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
-            db.ref('messages').push({
-                user: myProfile.name,
-                avatar: myProfile.avatar || "", // Send avatar with message
-                text: text,
-                time: timeString,
+            let payload = {
+                sender: currentUser.nick,
+                avatar: currentUser.avatar || "",
+                frame: currentUser.frame,
+                color: currentUser.color,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
+            };
 
-            input.value = "";
-            input.focus();
+            if (type === 'text') {
+                const input = document.getElementById('message-input');
+                const text = input.value.trim();
+                if (!text) return;
+                payload.type = 'text';
+                payload.content = text;
+                input.value = ''; // clear input
+            } else if (type === 'image') {
+                payload.type = 'image';
+                payload.content = content; // base64
+            }
+
+            db.ref('messages').push(payload);
         }
 
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
+        function initRealtime() {
+            if (!db) return;
+            const chatArea = document.getElementById('chat-area');
 
-        function listenForMessages() {
+            // Limit to last 50 messages to save data/dom
             db.ref('messages').limitToLast(50).on('child_added', (snapshot) => {
                 const msg = snapshot.val();
                 renderMessage(msg);
 
-                // Notification Logic
-                // 1. Not me
-                // 2. Newer than my connection time (avoid notifs for history)
-                // 3. Optional: Page visibility check (document.hidden) or just notify always
-                if (msg.user !== myProfile.name) {
-                    // Check timestamp to ensure it's a NEW message arriving now
-                    // Allow 1 second buffer or simple greater check
-                    if (msg.timestamp && msg.timestamp > initialConnectionTime) {
-                        triggerNotification(msg.user, msg.text);
+                // Notification (Logic: Recipient is me, Page Hidden, or Msg from others)
+                if (msg.sender !== currentUser.nick && document.hidden) {
+                    if (Notification.permission === "granted") {
+                        new Notification(`Mesaj: ${msg.sender}`, { body: msg.type === 'image' ? '📷 Fotoğraf' : msg.content });
                     }
+                    playPing();
+                } else if (msg.sender !== currentUser.nick) {
+                    playPing();
                 }
             });
         }
 
         function renderMessage(msg) {
-            // Check if it's me
-            const isMe = msg.user === myProfile.name;
+            const chatArea = document.getElementById('chat-area');
+            const isMine = msg.sender === currentUser.nick;
 
             const div = document.createElement('div');
-            div.className = `message-wrapper ${isMe ? 'sent' : 'received'}`;
+            div.className = `msg-row ${isMine ? 'mine' : 'other'}`;
 
-            // Avatar logic
-            const avatarSrc = msg.avatar || defaultAvatar;
-            const avatarHtml = `<img src="${avatarSrc}" class="msg-avatar" alt="${msg.user}">`;
+            // Avatar
+            const avatarHtml = `<div class="avatar-preview-container" style="width:32px; height:32px; margin:0; flex-shrink:0;">
+                <img src="${msg.avatar || defaultAvatar}" class="avatar-img ${msg.frame || 'frame-none'}">
+            </div>`;
 
-            div.innerHTML = `
-                ${avatarHtml}
-                <div class="message-bubble">
-                    ${!isMe ? `<span class="sender-name-label">${msg.user}</span>` : ''}
-                    ${msg.text}
-                    <div class="msg-meta">
-                        ${msg.time}
-                    </div>
-                </div>
-            `;
+            // Content
+            let contentHtml = '';
+            if (msg.type === 'image') {
+                // Image - Apply shadow of user's color
+                contentHtml = `<img src="${msg.content}" class="sticker-img" style="box-shadow: 0 4px 12px ${msg.color || '#8e44ad'}">`;
+            } else {
+                // Text Bubble
+                const bgStyle = isMine ? `background: ${msg.color || '#8e44ad'}` : '';
+                contentHtml = `<div class="msg-bubble" style="${bgStyle}">${escapeHtml(msg.content)}</div>`;
+            }
 
-            chatBox.appendChild(div);
-            // Scroll to bottom smoothly
-            requestAnimationFrame(() => {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
+            div.innerHTML = isMine
+                ? `<div class="msg-content"><div class="msg-name">Ben</div>${contentHtml}</div>`
+                : `${avatarHtml}<div class="msg-content"><div class="msg-name">${escapeHtml(msg.sender)}</div>${contentHtml}</div>`;
+
+            chatArea.appendChild(div);
+            // Scroll to bottom
+            setTimeout(() => chatArea.scrollTop = chatArea.scrollHeight, 100);
         }
 
-        // --- Resize/Mobile Height Fix ---
-        function setAppHeight() {
-            const doc = document.documentElement;
-            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
-        window.addEventListener('resize', setAppHeight);
-        setAppHeight();
+
     </script>
 </body>
 
